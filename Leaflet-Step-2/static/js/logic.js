@@ -1,6 +1,6 @@
 // URL to get for geoJSON from USGS. Data set use "All Earthquakes from the Past 7 Days"
 const url = "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_week.geojson";
-const tectonicURL = "static/PB2002_boundaries.json"
+const tectonicURL = "https://raw.githubusercontent.com/fraxen/tectonicplates/master/GeoJSON/PB2002_boundaries.json"
 
 // Function to create map
 function createMap(earthquakes, tectonicPlates){
@@ -21,7 +21,7 @@ function createMap(earthquakes, tectonicPlates){
     var map = L.map("map", {
         center: [31.51073, -96.4247],
         zoom: 5,
-        layers: [streetMap, earthquakes]
+        layers: [sat, earthquakes, tectonicPlates]
     });
 
     // Create a baseMap object to hold the streetMap
@@ -34,7 +34,7 @@ function createMap(earthquakes, tectonicPlates){
     // Create an overlayMaps object to hold earthquakes 
     var overlayMaps = {
         "Earthquake": earthquakes,
-        // "Tectonic Plates": tectonicPlates
+        "Tectonic Plates": tectonicPlates
     };
 
     // Add a layer control to display baseMap and overlayMaps
@@ -45,8 +45,8 @@ function createMap(earthquakes, tectonicPlates){
     // Get Colors for Legend
     function getColor(d) {
         return d > 90 ? '#FC2500':
-        d > 70 ? "#FC7300":
-        d > 50 ? "#FC5400":
+        d > 70 ? "#FC5400":
+        d > 50 ? "#FC7300":
         d > 30 ? '#FCCD5D':
         d > 10 ? '#9ACD32':
         '#00FF00';
@@ -79,11 +79,11 @@ function createMap(earthquakes, tectonicPlates){
 // function to create Markers
 function createMarkers(earthquake, tectonicPlates){
         
-        //Pull the features from response.data
+        //Pull the features from earthquake.data
         var features = earthquake.features;
 
+        // Pull features from TectonicPlates data
         var tectonic = tectonicPlates.features;
-        console.log(tectonic)
 
         // Initialize an array to hold earthquake markers
         var markers = [];
@@ -106,9 +106,9 @@ function createMarkers(earthquake, tectonicPlates){
             } else if (depth < 50){
                 color = '#FCCD5D'
             } else if (depth < 70){
-                color = "#FC5400"
-            } else if (depth < 90){
                 color = "#FC7300"
+            } else if (depth < 90){
+                color = "#FC5400"
             } else {
                 color = '#FC2500'
             }
@@ -121,38 +121,33 @@ function createMarkers(earthquake, tectonicPlates){
                 //Adjust the radius
                 radius: feature.properties.mag*10000
             }).bindPopup(`<h1>${feature.properties.place}</h1><hr><h4>Time: ${new Date(feature.properties.time)}</h4>
-            <p>Magnitud: ${feature.properties.mag}</p><br><p>Depth: ${feature.properties.depth}`)
-            
-            // For each tectonic plate, create a merker
-            // for (var i=0; i< tectonic.length; i++){
-            //     var plate = tectonic[i]
-            //     var coordinates = plate.geometry.coordinates
-            //     var coordinate = []
-            //     for (var j=0; j<coordinates.length; j++){
-            //         coordinate.push(coordinates[j])
-            //         console.log(coordinate)
-            //     }
-            //     console.log(coordinate)
-            //     var plateMarker = L.polyline(coordinate, {
-            //         color: 'blue'
-            //     })
-            // }
+            <p>Magnitud: ${feature.properties.mag}</p><br><p>Depth: ${feature.geometry.coordinates[2]}`)
 
             // Add marker to the markers array
             markers.push(marker);
-            //plateMarkers.push(plateMarker)
+            
         }
 
+        // For each tectonic plate, create a marker
+            for (var i=0; i< tectonic.length; i++){
+                var plate = tectonic[i]
+                var coordinates = []
+                coordinates.push(plate.geometry.coordinates)
+                var plateMarker = L.polyline(coordinates, {
+                    color: 'orange'
+                })
+                plateMarkers.push(plateMarker)
+            }
         // Create a layer group that's made from the earthquake array, and pass it to the createMap function
-        createMap(L.layerGroup(markers, plateMarkers));
+        createMap(L.layerGroup(markers), L.layerGroup(plateMarkers));
 
 }
 
 // Perform an API call to the USGS information endpoint.
 d3.json(url).then(data => {
     var earthquake = data
-    d3.json(tectonicURL).then(response =>{
-        createMarkers(earthquake, response)
+    d3.json(tectonicURL).then(tectonicplate =>{
+        createMarkers(earthquake, tectonicplate)
     })
 });
 
